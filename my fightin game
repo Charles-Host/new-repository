@@ -1,0 +1,114 @@
+#initialization phase
+
+import pygame
+import os
+import time
+
+pygame.mixer.pre_init(44100, 16, 2, 4096)
+pygame.init()
+
+SCREEN_WIDTH = 1500
+SCREEN_HEIGHT = 900
+
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+scale_factor = 4
+sol_specific_scale = 1.75 * scale_factor
+# sol is absolutely huge, but I'm glad I don't have potemkin in this, otherwise we'd have to make a lot more changes, but nontheless, you can change that coefficient to your liking.
+
+faust_image = pygame.image.load(os.path.join('assets', 'faust_png_basic.png'))
+sol_image = pygame.image.load(os.path.join('assets', 'sol_png_basic.png'))
+faust_image = pygame.transform.scale(faust_image, ((976 / scale_factor, 1389 / scale_factor)))
+sol_image = pygame.transform.scale(sol_image, (1775 / sol_specific_scale, 2509 / sol_specific_scale))
+sky_background = pygame.image.load(os.path.join('assets', 'sky_background_stock.jpeg'))
+sky_background = pygame.transform.scale(sky_background, (SCREEN_WIDTH, 700))
+
+clock = pygame.time.Clock()
+
+pygame.mixer.music.load('guilty_rari1.wav')
+pygame.mixer.music.play(-1)  # -1 means loop indefinitely
+
+faust_x = 230
+faust_y = 1811 / 4
+sol_x = 930
+sol_y = 3091 / 7
+
+faust_body_hitbox = pygame.Rect(faust_x + (80 / scale_factor), faust_y, 896 / scale_factor, 1389 / scale_factor)
+sol_body_hitbox = pygame.Rect(sol_x + 80 / sol_specific_scale, sol_y / sol_specific_scale, 1775 / sol_specific_scale, 2429 / sol_specific_scale)
+
+
+# the central game loop starts here, the code will be harder to explain in there, so be prepared for a lot of comments
+run = True
+while run:
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            run = False
+    # the thing that stops the game from going forever, thankfully pygame knows this and will automatically close it, but this is probably the most important three lines in the entire script
+    
+    screen.fill((0, 0, 0))
+    #fills the screen, if you want to draw something visible, put it over this
+
+    game_floor = pygame.Rect(0, 800, SCREEN_WIDTH, 100)
+    pygame.draw.rect(screen, (134, 89, 45), game_floor)
+    floor_background = (0, 700, SCREEN_WIDTH, 100)
+    pygame.draw.rect(screen, (196, 137, 78), floor_background)
+    screen.blit(sky_background, (0, 0))
+    
+    screen.blit(faust_image, (faust_x, faust_y))
+    screen.blit(sol_image, (sol_x, sol_y))
+    #sol and faust are drawn, faust comes before sol
+
+
+    key = pygame.key.get_pressed()
+    moved = False
+    # we get input here, so don't try any iputs before this, they won't work.
+
+    if key[pygame.K_RCTRL]:
+        sol_max_speed = 5
+    else:
+        sol_max_speed = 3
+    #dash buttons for faust and sol, mostly because I just wanted them.
+
+    if key[pygame.K_LSHIFT]:
+        faust_speed = 5
+    else:
+        faust_speed = 3
+
+    if key[pygame.K_a] and faust_x - faust_speed > 0:
+        faust_x -= faust_speed
+        moved = True
+    if key[pygame.K_d] and faust_x + (896 / scale_factor) + faust_speed < SCREEN_WIDTH:
+        faust_x += faust_speed
+        moved = True
+    # faust movement code
+    #TODO: add acceleration for faust
+    
+    if key[pygame.K_RIGHT]:
+        sol_speed = 5
+    else:
+        sol_speed = 3
+
+    if key[pygame.K_KP_4] and sol_x - sol_speed > 0:
+        sol_x -= sol_speed
+        moved = True
+    if key[pygame.K_KP_6] and sol_x + (1775 / sol_specific_scale) + sol_speed < SCREEN_WIDTH:
+        sol_x += sol_speed
+        moved = True
+    # sol movement code
+    #TODO: add acceleration for Sol
+
+    if moved:
+        print(faust_x, faust_y, sol_x, sol_y)
+
+    #other stuff we need:
+    #TODO: add jumping and gravity
+    #TODO: let them attack each other
+    #TODO: add damage and health plus different health for different characters if we get that far
+    #TODO: add attack sounds
+    #TODO: add screen scroll and boundaries, can't have us just losing the characters
+
+    pygame.display.update()
+
+    clock.tick(60)
+
+pygame.quit()
