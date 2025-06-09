@@ -13,12 +13,12 @@ SCREEN_HEIGHT = 900
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 scale_factor = 4
 sol_specific_scale = 1.75 * scale_factor
-# sol is absolutely huge, but I'm glad I don't have potemkin in this, otherwise we'd have to make a lot more changes, but nontheless, you can change that coefficient to your liking.
+# sol is absolutely huge, but I'm glad I don't have potemkin in this, otherwise we'd have to make a lot more changes, but nonetheless, you can change that coefficient to your liking.
 
 faust_image = pygame.image.load(os.path.join('assets', 'faust_png_basic.png'))
 sol_image = pygame.image.load(os.path.join('assets', 'sol_png_basic.png'))
-faust_image = pygame.transform.scale(faust_image, ((976 / scale_factor, 1389 / scale_factor)))
-sol_image = pygame.transform.scale(sol_image, (1775 / sol_specific_scale, 2509 / sol_specific_scale))
+faust_image = pygame.transform.scale(faust_image, ((976 // scale_factor, 1389 // scale_factor)))
+sol_image = pygame.transform.scale(sol_image, (1775 // sol_specific_scale, 2509 // sol_specific_scale))
 sky_background = pygame.image.load(os.path.join('assets', 'sky_background_stock.jpeg'))
 sky_background = pygame.transform.scale(sky_background, (SCREEN_WIDTH, 700))
 
@@ -26,89 +26,352 @@ clock = pygame.time.Clock()
 
 pygame.mixer.music.load('guilty_rari1.wav')
 pygame.mixer.music.play(-1)  # -1 means loop indefinitely
+#also, god does this, I don't even know how to react to it being played over smell of the game, and the fact strad came right after it, what is this
 
-faust_x = 230
-faust_y = 1811 / 4
-sol_x = 930
-sol_y = 3091 / 7
+faust_x = 250
+faust_y = 1811 // 4
+sol_x = 1000
+sol_y = 3091 // 7
 
-faust_body_hitbox = pygame.Rect(faust_x + (80 / scale_factor), faust_y, 896 / scale_factor, 1389 / scale_factor)
-sol_body_hitbox = pygame.Rect(sol_x + 80 / sol_specific_scale, sol_y / sol_specific_scale, 1775 / sol_specific_scale, 2429 / sol_specific_scale)
+faust_init_up_vel = 0
+faust_wait_frame = 0
+faust_jump_slower = 1
+
+sol_init_up_vel = 0
+sol_wait_frame = 0
+sol_jump_slower = 1
+
+faust_health = 100
+sol_health = 100
+faust_attack_type = 0
+sol_attack_type = 0
+faust_attack_cooldown = [0, 0, 0, 0, 0, 0, 0, 0]
+sol_attack_cooldown = [0, 0, 0, 0, 0, 0, 0, 0]
+faust_shielded = False
+sol_shielded = False
+faust_in_air = False
+sol_in_air = False
+faust_jumping_exception = True
+sol_jumping_exception = True
+
+
+
+
 
 
 # the central game loop starts here, the code will be harder to explain in there, so be prepared for a lot of comments
 run = True
 while run:
-
     for event in pygame.event.get():
-        if event.type == pygame.QUIT:
+        if event.type == pygame.QUIT or min(faust_health, sol_health) <= 0:
             run = False
     # the thing that stops the game from going forever, thankfully pygame knows this and will automatically close it, but this is probably the most important three lines in the entire script
+    screen.fill("black")
     
-    screen.fill((0, 0, 0))
     #fills the screen, if you want to draw something visible, put it over this
-
     game_floor = pygame.Rect(0, 800, SCREEN_WIDTH, 100)
     pygame.draw.rect(screen, (134, 89, 45), game_floor)
     floor_background = (0, 700, SCREEN_WIDTH, 100)
     pygame.draw.rect(screen, (196, 137, 78), floor_background)
     screen.blit(sky_background, (0, 0))
-    
+
+    # ALL of the hitboxes, be prepared to SCROLL
+    faust_healthbar_green = pygame.Rect(50, 50, 500, 25)
+    sol_healthbar_green = pygame.Rect(950, 50, 500, 25)
+    faust_healthbar_red = pygame.Rect(50 + (5 * faust_health), 50, (100 -faust_health) * 5, 25)
+    sol_healthbar_red = pygame.Rect(950, 50, 5 * (100 - sol_health), 25)
+    faust_body_hitbox = pygame.Rect(faust_x, faust_y + (100 // scale_factor), 896 // scale_factor, 1290 // scale_factor)
+    sol_body_hitbox = pygame.Rect(sol_x, sol_y + (250 // sol_specific_scale), 1775 // sol_specific_scale, 2265 // sol_specific_scale)
+    pygame.draw.rect(screen, (0, 0, 255), faust_body_hitbox)
+    pygame.draw.rect(screen, (255, 0, 0), sol_body_hitbox)
+    faust_top_left = (int(faust_x), int(faust_y + (100 // scale_factor)))
+    faust_bottom_right = (int(faust_x + 896 // scale_factor), int(faust_y + (100 // scale_factor) + 1290 // scale_factor))
+    sol_top_left = (int(sol_x), int(sol_y + (250 // sol_specific_scale)))
+    sol_bottom_right = (int(sol_x + 1775 // sol_specific_scale), int(sol_y + (250 // sol_specific_scale) + 2265 // sol_specific_scale))
+    faust_att_1L = (faust_bottom_right[0], faust_top_left[1] + 50)
+    faust_att_1R = (faust_bottom_right[0] + 150, faust_top_left[1] + 100)
+    faust_att_2L = (faust_top_left[0] - 150, faust_top_left[1] + 50)
+    faust_att_2R = (faust_top_left[0], faust_top_left[1] + 100)
+    faust_att_3L = (((faust_top_left[0] + faust_bottom_right[0]) // 2) - 50, faust_top_left[1] - 100)
+    faust_att_3R = (((faust_top_left[0] + faust_bottom_right[0]) // 2) + 50, faust_top_left[1] + 50)
+    faust_att_4L = (faust_bottom_right[0] - 50, faust_bottom_right[1] - 50)
+    faust_att_4R = (faust_bottom_right[0] + 250, faust_bottom_right[1])
+    faust_att_5L = (faust_top_left[0] - 250, faust_bottom_right[1] - 50)
+    faust_att_5R = (faust_top_left[0] + 50, faust_bottom_right[1])
+    faust_att_6L = (faust_bottom_right[0], faust_top_left[1] - 100)
+    faust_att_6R = (faust_bottom_right[0] + 50, faust_top_left[1] + 100)
+    faust_att_7L = (faust_top_left[0] - 50, faust_top_left[1] - 100)
+    faust_att_7R = (faust_top_left[0], faust_top_left[1] + 100)
+    faust_att_8L = (faust_top_left[0] - 50, faust_bottom_right[1])
+    faust_att_8R = (faust_bottom_right[0] + 50, faust_bottom_right[1] + 50)
+    sol_att_1L = (sol_bottom_right[0], sol_top_left[1] + 50)
+    sol_att_1R = (sol_bottom_right[0] + 150, sol_top_left[1] + 100)
+    sol_att_2L = (sol_top_left[0] - 150, sol_top_left[1] + 50)
+    sol_att_2R = (sol_top_left[0], sol_top_left[1] + 100)
+    sol_att_3L = (((sol_top_left[0] + sol_bottom_right[0]) // 2) - 50, sol_top_left[1] - 100)
+    sol_att_3R = (((sol_top_left[0] + sol_bottom_right[0]) // 2) + 50, sol_top_left[1] + 50)
+    sol_att_4L = (sol_bottom_right[0] - 50, sol_bottom_right[1] - 50)
+    sol_att_4R = (sol_bottom_right[0] + 250, sol_bottom_right[1])
+    sol_att_5L = (sol_top_left[0] - 250, sol_bottom_right[1] - 50)
+    sol_att_5R = (sol_top_left[0] + 50, sol_bottom_right[1])
+    sol_att_6L = (sol_bottom_right[0], sol_top_left[1] - 100)
+    sol_att_6R = (sol_bottom_right[0] + 50, sol_top_left[1] + 100)
+    sol_att_7L = (sol_top_left[0] - 50, sol_top_left[1] - 100)
+    sol_att_7R = (sol_top_left[0], sol_top_left[1] + 100)
+    sol_att_8L = (sol_top_left[0] - 50, sol_bottom_right[1])
+    sol_att_8R = (sol_bottom_right[0] + 50, sol_bottom_right[1] + 50)
+
+    def collision_detector(l_char, r_char, l_att, r_att):
+        print(l_char, r_char, l_att, r_att)
+        att_rect = pygame.Rect(l_att[0], l_att[1], r_att[0] - l_att[0], r_att[1] - l_att[1])
+        pygame.draw.rect(screen, (255, 0, 255), att_rect)
+        if l_char[0] == r_char[0] or l_char[1] == r_char[1] or l_att[0] == r_att[0] or l_att[1] == r_att[1]:
+            return False
+        if l_char[0] > r_att[0] or l_att[0] > r_char[0]:
+            return False
+        if r_char[1] < l_att[1] or r_att[1] < l_char[1]:
+            return False
+        return True
+   
     screen.blit(faust_image, (faust_x, faust_y))
     screen.blit(sol_image, (sol_x, sol_y))
     #sol and faust are drawn, faust comes before sol
 
+    pygame.draw.rect(screen, (0, 255, 0), faust_healthbar_green)
+    pygame.draw.rect(screen, (0, 255, 0), sol_healthbar_green)
+    pygame.draw.rect(screen, (255, 0, 0), faust_healthbar_red)
+    pygame.draw.rect(screen, (255, 0, 0), sol_healthbar_red)
 
     key = pygame.key.get_pressed()
-    moved = False
-    # we get input here, so don't try any iputs before this, they won't work.
-
-    if key[pygame.K_RCTRL]:
-        sol_max_speed = 5
-    else:
-        sol_max_speed = 3
-    #dash buttons for faust and sol, mostly because I just wanted them.
+    # we get input here, so don't try any inputs before this, they won't work.
 
     if key[pygame.K_LSHIFT]:
-        faust_speed = 5
+        faust_speed = 8
     else:
-        faust_speed = 3
+        faust_speed = 4
+     # dash code for faust, he a speedy boi
 
     if key[pygame.K_a] and faust_x - faust_speed > 0:
         faust_x -= faust_speed
-        moved = True
-    if key[pygame.K_d] and faust_x + (896 / scale_factor) + faust_speed < SCREEN_WIDTH:
+    if key[pygame.K_d] and faust_x + (896 // scale_factor) + faust_speed < SCREEN_WIDTH:
         faust_x += faust_speed
-        moved = True
-    # faust movement code
-    #TODO: add acceleration for faust
-    
+
+    if key[pygame.K_w] and faust_y == 1811 // 4 and not key[pygame.K_s] and all(cooldown == 0 for cooldown in faust_attack_cooldown):
+        faust_init_up_vel = 35
+        faust_jumping_exception = True
+    if faust_wait_frame == 0:
+        if faust_y < 1811 // 4 or faust_init_up_vel > 0:
+            faust_y -= faust_init_up_vel
+            faust_init_up_vel -= 2
+            faust_in_air = True
+        else:
+            faust_y = 1811 // 4
+            faust_init_up_vel = 0
+            faust_in_air = False
+            faust_jumping_exception = True
+        faust_wait_frame = faust_jump_slower
+    else:
+        faust_wait_frame -= 1
+     # jumping code, change == to <= on line 125 to make flappy faust
+   
+    if key[pygame.K_e] and faust_attack_cooldown[0] == 0 and not (key[pygame.K_q] or key[pygame.K_2] or key[pygame.K_s]):
+        faust_attack_type = 1
+        faust_attack_cooldown[0] = 10
+        if collision_detector(sol_top_left, sol_bottom_right, faust_att_1L, faust_att_1R):
+            if sol_shielded:
+                sol_health -= 2
+            else:
+                sol_health -= 5
+        print('HIT 1')
+    if key[pygame.K_q] and faust_attack_cooldown[1] == 0 and not (key[pygame.K_e] or key[pygame.K_2] or key[pygame.K_s]):
+        faust_attack_type = 2
+        faust_attack_cooldown[1] = 10
+        if collision_detector(sol_top_left, sol_bottom_right, faust_att_2L, faust_att_2R):
+            if sol_shielded:
+                sol_health -= 2
+            else:
+                sol_health -= 5
+        print('HIT 2')
+    if key[pygame.K_s] and faust_attack_cooldown[3:4] == [0, 0] and not (key[pygame.K_a] or key[pygame.K_d] or key[pygame.K_w] or key[pygame.K_2] or key[pygame.K_q] or key[pygame.K_e] or faust_in_air):
+        faust_shielded = True
+        print('shielding')
+    if key[pygame.K_2] and not (key[pygame.K_q] or key[pygame.K_e] or faust_attack_cooldown[2] != 0):
+        faust_attack_type = 3
+        faust_attack_cooldown[2] = 10
+        if collision_detector(sol_top_left, sol_bottom_right, faust_att_3L, faust_att_3R):
+            if sol_shielded:
+                sol_health -= 2
+            else:
+                sol_health -= 10
+        print('HIT 3')
+    if (key[pygame.K_e] and key[pygame.K_s]) and faust_attack_cooldown[3] == 0 and not (key[pygame.K_q] or key[pygame.K_2]):
+        faust_shielded = False
+        faust_attack_type = 4
+        faust_attack_cooldown[3] = 20
+        if collision_detector(sol_top_left, sol_bottom_right, faust_att_4L, faust_att_4R):
+            sol_health -= 10
+            sol_shielded = False
+            sol_attack_cooldown[3] = 15
+            sol_attack_cooldown[4] = 15
+        print('HIT 4')
+    if (key[pygame.K_q] and key[pygame.K_s]) and faust_attack_cooldown[4] == 0 and not (key[pygame.K_e] or key[pygame.K_2]):
+        faust_shielded = False
+        faust_attack_type = 5
+        faust_attack_cooldown[4] = 20
+        if collision_detector(sol_top_left, sol_bottom_right, faust_att_5L, faust_att_5R):
+            sol_health -= 10
+            sol_shielded = False
+            sol_attack_cooldown[3] = 15
+            sol_attack_cooldown[4] = 15
+        print('HIT 5')
+    if (key[pygame.K_2] and key[pygame.K_e]) and (faust_jumping_exception) and faust_attack_cooldown[5] == 0 and not (key[pygame.K_q] or key[pygame.K_s]):
+        faust_attack_type = 6
+        faust_attack_cooldown[5] = 25
+        faust_in_air = True
+        faust_jumping_exception = False
+        if collision_detector(sol_top_left, sol_bottom_right, faust_att_6L, faust_att_6R):
+            if sol_shielded:
+                sol_health -= 2
+            elif sol_in_air:
+                sol_health -= 25
+                sol_init_up_vel = 25
+                faust_init_up_vel = 19
+            else:
+                sol_health -= 15
+        else:
+            faust_init_up_vel = 19
+        print('HIT 6')
+    if (key[pygame.K_2] and key[pygame.K_q]) and (faust_jumping_exception) and faust_attack_cooldown[6] == 0 and not (key[pygame.K_e] or key[pygame.K_s]):
+        faust_attack_type = 7
+        faust_attack_cooldown[6] = 25
+        faust_in_air = True
+        faust_jumping_exception = False
+        if collision_detector(sol_top_left, sol_bottom_right, faust_att_7L, faust_att_7R):
+            if sol_shielded:
+                sol_health -= 2
+                faust_init_up_vel = 11
+            elif sol_in_air:
+                sol_health -= 25
+                sol_init_up_vel = 25
+                faust_init_up_vel = 19
+            else:
+                sol_health -= 15
+                sol_init_up_vel = 19
+                faust_init_up_vel = 11
+        else:
+            faust_init_up_vel = 19
+        print('HIT 7')
+    if (faust_in_air and key[pygame.K_s]) and faust_attack_cooldown[7] == 0 and not (key[pygame.K_e] or key[pygame.K_q]):
+        faust_attack_type = 8
+        faust_attack_cooldown[7] = 25
+        faust_init_up_vel -= 3
+        if collision_detector(sol_top_left, sol_bottom_right, faust_att_8L, faust_att_8R):
+            if sol_shielded:
+                sol_health -= 10
+                sol_shielded = False
+            elif sol_in_air:
+                sol_health -= 5
+            else:
+                sol_health -= 25
+        print('HIT 8')
+    if not (key[pygame.K_2] or key[pygame.K_e] or key[pygame.K_q] or key[pygame.K_s] or faust_attack_cooldown != [0, 0, 0, 0, 0, 0, 0, 0]):
+        faust_attack_type
+
+    for index, number in enumerate(faust_attack_cooldown):
+        faust_attack_cooldown[index] = max(0, number - 1)
+    for index, number in enumerate(sol_attack_cooldown):
+        sol_attack_cooldown[index] = max(0, number - 1)
+
     if key[pygame.K_RIGHT]:
         sol_speed = 5
     else:
         sol_speed = 3
+     # dash speed for sol, with how slow he is, he basically needs it to keep up
 
     if key[pygame.K_KP_4] and sol_x - sol_speed > 0:
         sol_x -= sol_speed
         moved = True
-    if key[pygame.K_KP_6] and sol_x + (1775 / sol_specific_scale) + sol_speed < SCREEN_WIDTH:
+    if key[pygame.K_KP_6] and sol_x + (1775 // sol_specific_scale) + sol_speed < SCREEN_WIDTH:
         sol_x += sol_speed
         moved = True
+    if key[pygame.K_KP_8] and sol_y == 3091 // 7 and not key[pygame.K_KP_5]:
+        sol_init_up_vel = 21
+        moved = True
+        sol_jumping_exception = True
+    if sol_wait_frame == 0:
+        if sol_y < 3091 // 7 or sol_init_up_vel > 0:
+            sol_y -= sol_init_up_vel
+            sol_init_up_vel -= 1
+            sol_in_air = True
+        else:
+            sol_y = 3091 // 7
+            sol_init_up_vel = 0
+            sol_in_air = False
+            sol_jumping_exception = True
+        sol_wait_frame = sol_jump_slower
+        moved = True
+    else:
+        sol_wait_frame -= 1
     # sol movement code
-    #TODO: add acceleration for Sol
+ 
+    if key[pygame.K_KP_9] and not (key[pygame.K_KP_7] or key[pygame.K_KP_DIVIDE] or key[pygame.K_KP_5] or sol_attack_cooldown[0] != 0):
+        sol_attack_type = 1
+        sol_attack_cooldown[0] = 10
+        print('HIT 1')
+    if key[pygame.K_KP_7] and not (key[pygame.K_KP_9] or key[pygame.K_KP_DIVIDE] or key[pygame.K_KP_5] or sol_attack_cooldown[1] != 0):
+        sol_attack_type = 2
+        sol_attack_cooldown[1] = 10
+        print('HIT 2')
+    if key[pygame.K_KP_5] and not (key[pygame.K_a] or key[pygame.K_d] or key[pygame.K_w] or key[pygame.K_KP_DIVIDE] or key[pygame.K_KP_7] or key[pygame.K_KP_9] or sol_attack_cooldown[3:4] != [0, 0] or sol_in_air):
+        sol_shielded = True
+        print('shielding')
+    if key[pygame.K_KP_DIVIDE] and not (key[pygame.K_KP_7] or key[pygame.K_KP_9] or sol_attack_cooldown[2] != 0):
+        sol_attack_type = 3
+        sol_attack_cooldown[2] = 10
+        print('HIT 3')
+    if (key[pygame.K_KP_9] and key[pygame.K_KP_5]) and not (key[pygame.K_KP_7] or key[pygame.K_KP_DIVIDE] or sol_attack_cooldown[3] != 0):
+        sol_shielded = False
+        sol_attack_type = 4
+        sol_attack_cooldown[3] = 20
+        print('HIT 4')
+    if (key[pygame.K_KP_7] and key[pygame.K_KP_5]) and not (key[pygame.K_KP_9] or key[pygame.K_KP_DIVIDE] or sol_attack_cooldown[4] != 0):
+        sol_shielded = False
+        sol_attack_type = 5
+        sol_attack_cooldown[4] = 20
+        print('HIT 5')
+    if (key[pygame.K_KP_DIVIDE] and key[pygame.K_KP_9]) and (sol_jumping_exception) and not (key[pygame.K_KP_7] or key[pygame.K_KP_5] or sol_attack_cooldown[5] != 0):
+        sol_attack_type = 6
+        sol_attack_cooldown[5] = 25
+        sol_init_up_vel = 19
+        sol_in_air = True
+        sol_jumping_exception = False
+        print('HIT 6')
+    if (key[pygame.K_KP_DIVIDE] and key[pygame.K_KP_7]) and (sol_jumping_exception) and not (key[pygame.K_KP_9] or key[pygame.K_KP_5] or sol_attack_cooldown[6] != 0):
+        sol_attack_type = 7
+        sol_attack_cooldown[6] = 25
+        sol_init_up_vel = 19
+        sol_in_air = True
+        sol_jumping_exception = False
+        print('HIT 7')
+    if (sol_in_air and key[pygame.K_KP_5]) and not (key[pygame.K_KP_9] or key[pygame.K_KP_7] or sol_attack_cooldown[7] != 0):
+        sol_attack_type = 8
+        sol_attack_cooldown[7] = 25
+        sol_init_up_vel -= 3
+        print('HIT 8')
+    if not (key[pygame.K_KP_DIVIDE] or key[pygame.K_KP_9] or key[pygame.K_KP_7] or key[pygame.K_KP_5] or sol_attack_cooldown != [0, 0, 0, 0, 0, 0, 0, 0]):
+        sol_attack_type = 9
+ 
 
-    if moved:
-        print(faust_x, faust_y, sol_x, sol_y)
-
-    #other stuff we need:
-    #TODO: add jumping and gravity
-    #TODO: let them attack each other
-    #TODO: add damage and health plus different health for different characters if we get that far
+    #TODO: add acceleration for Sol and faust if I feel like it
+    #TODO: add damage hitbox based on where they're hitting
+    #TODO: add hit detection
+    #TODO: silly attack sprite must be added
     #TODO: add attack sounds
-    #TODO: add screen scroll and boundaries, can't have us just losing the characters
+    #TODO: add silly walk cycle
+
 
     pygame.display.update()
-
     clock.tick(60)
+
 
 pygame.quit()
