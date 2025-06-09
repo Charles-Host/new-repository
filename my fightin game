@@ -24,7 +24,7 @@ sky_background = pygame.transform.scale(sky_background, (SCREEN_WIDTH, 700))
 
 clock = pygame.time.Clock()
 
-pygame.mixer.music.load('guilty_rari1.wav')
+pygame.mixer.music.load('guilty_rari1.mp3')
 pygame.mixer.music.play(-1)  # -1 means loop indefinitely
 #also, god does this, I don't even know how to react to it being played over smell of the game, and the fact strad came right after it, what is this
 
